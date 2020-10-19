@@ -113,6 +113,33 @@ func startTransactionIDSpecified(t *testing.T, traceContext apm.TraceContext) {
 	tx.Discard()
 }
 
+func TestDiscardTransaction(t *testing.T) {
+	tracer, _ := transporttest.NewRecorderTracer()
+	defer tracer.Close()
+
+	tx := tracer.StartTransaction("name", "type")
+	tx.Discard()
+	assert.Equal(t, (*apm.TransactionData)(nil), tx.TransactionData)
+	assert.Equal(t, apm.SpanID{}, tx.EnsureParent())
+}
+
+func TestDiscardTransactionPanic(t *testing.T) {
+	tracer, _ := transporttest.NewRecorderTracer()
+	defer tracer.Close()
+
+	wg := new(sync.WaitGroup)
+	for i := 0; i < 100000; i++ {
+		wg.Add(1)
+		go func() {
+			tx := tracer.StartTransaction("name", "type")
+			tx.Discard()
+			tx.End()
+			wg.Done()
+		}()
+	}
+	wg.Wait()
+}
+
 func TestTransactionEnsureParent(t *testing.T) {
 	tracer, transport := transporttest.NewRecorderTracer()
 	defer tracer.Close()
